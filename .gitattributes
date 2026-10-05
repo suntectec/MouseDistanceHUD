@@ -1,0 +1,10 @@
+# 统一换行符：仓库内一律 LF，Windows 批处理检出为 CRLF
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制资源不做换行转换
+*.png binary
+*.jpg binary
+*.ogg binary
+*.wav binary

@@ -1,0 +1,18 @@
+# Godot 4 导入缓存与编辑器状态（打开项目时自动重建）
+.godot/
+
+# keyhook.exe 由 keyhook.cs 编译生成，见 build-keyhook.bat
+keyhook.exe
+
+# 导出产物
+build/
+export/
+*.pck
+
+# 本机 Godot 路径（可选，见 run.bat）
+godot_path.txt
+
+# 系统杂项
+Thumbs.db
+desktop.ini
+.DS_Store
