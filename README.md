@@ -81,7 +81,7 @@ csc /nologo /target:winexe /out:keyhook.exe keyhook.cs
 
 - **`.godot/` 不要提交** —— 导入缓存，打开项目时会自动重建，已在 `.gitignore` 里
 - **`.gd.uid` 和 `.import` 要提交** —— Godot 4.4+ 靠 `.uid` 稳定引用资源，忽略它们会让别人的引用错乱
-- **`keyhook.exe` 不要提交** —— 改了 `keyhook.cs` 记得重新跑 `build-keyhook.bat`，否则 exe 会静默过期
+- **`keyhook.exe` 不要提交** —— 改了 `keyhook.cs` 记得重新跑 `build-keyhook.bat`，否则 exe 会静默过期。编译前先关掉 HUD：运行中的 `keyhook.exe` 会锁住输出文件，导致编译器报 CS0016
 - **调试截图** —— 把 `HUD_SCREENSHOT` 环境变量设成一个 png 路径，HUD 启动后会截图并退出；用 `HUD_SCREENSHOT_DELAY` 调延迟（默认 1.5 秒）
 - **改窗口尺寸** —— `SCALE`、`WIN_W`、`WIN_H` 在 `hud.gd` 顶部，改的时候记得同步 `project.godot` 里的视口尺寸
 
