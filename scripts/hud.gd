@@ -1,12 +1,11 @@
 extends Control
 ## 悬浮拳击训练 HUD：像素拳击手在街道上训练
-##   鼠标移动 → 拳击手奔跑（楼房/路面视差卷动，方向跟随鼠标左右）
+##   鼠标移动 → 拳击手始终向右奔跑（轨迹长度即里程，不分方向），楼房/路面视差向左卷动
 ##   敲键盘 → 每次敲击出一拳，左拳右拳交替，punch 计数 +1
 ##   无操作 → 抱架站姿待机
 ## 按住画面拖动窗口；右上角"清零"归零，"×"退出；punch 依赖 keyhook.exe
 
 const BoxerArt = preload("res://scripts/boxer_art.gd")
-const HOOK_PORT := 52777
 const HOOK_EXE := "keyhook.exe"
 
 const SCALE := 2
@@ -18,13 +17,13 @@ const STREET_LINE_Y := 44      # 街道线（2x 后）
 const PUNCH_TIME := 0.13       # 每拳动画时长（秒）
 const RUN_STRIDE_PX := 5.0     # 鼠标每移动多少像素切换一次跑步帧
 const IDLE_MS := 350           # 鼠标停止多久回到抱架
+const CHIP_RIGHT := 33         # 统计面板右边缘距窗口右边的间距
 
 var total_px := 0.0
 var punches := 0
 
 var _last_mouse := Vector2.ZERO
 var _last_move_ms := 0
-var _moving_left := false
 var _dragging := false
 var _drag_win_origin := Vector2.ZERO
 var _drag_mouse_origin := Vector2.ZERO
@@ -44,6 +43,7 @@ var _run_frame_a := true
 
 var _label: Label
 var _sub_label: Label
+var _chip: PanelContainer
 var _font: SystemFont
 
 
@@ -129,6 +129,7 @@ func _build_chip() -> void:
 	chip.add_theme_stylebox_override("panel", sb)
 	chip.position = Vector2(146, 4)
 	chip.gui_input.connect(_on_drag_input)
+	_chip = chip
 
 	var hbox := HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 6)
@@ -174,14 +175,15 @@ func _make_button(text: String, handler: Callable) -> Button:
 
 func _start_hook() -> void:
 	_udp = PacketPeerUDP.new()
-	if _udp.bind(HOOK_PORT) != OK:
+	# 端口交给系统分配：写死端口会撞上 Windows 的保留区间（netsh int ipv4 show excludedportrange protocol=udp）
+	if _udp.bind(0) != OK:
 		_udp = null
-		push_warning("UDP 端口 %d 被占用，punch 计数不可用" % HOOK_PORT)
+		push_warning("无法分配 UDP 端口，punch 计数不可用")
 		return
 	var exe := ProjectSettings.globalize_path("res://" + HOOK_EXE)
 	if FileAccess.file_exists(exe):
-		# 传入自己的 PID，keyhook 在 HUD 退出后自动跟随退出
-		OS.create_process(exe, [str(HOOK_PORT), str(OS.get_process_id())])
+		# 传入端口和自己的 PID，keyhook 在 HUD 退出后自动跟随退出
+		OS.create_process(exe, [str(_udp.get_local_port()), str(OS.get_process_id())])
 
 
 func _process(delta: float) -> void:
@@ -201,18 +203,13 @@ func _process(delta: float) -> void:
 	total_px += d.length()
 	if d.length() > 0.5:
 		_last_move_ms = now
-	if d.x > 0.5:
-		_moving_left = false
-	elif d.x < -0.5:
-		_moving_left = true
 
 	if _punch_timer <= 0.0:
-		_scroll(-d.x / SCALE)
-		if absf(d.x) > 0.5:
-			_run_stride += absf(d.x)
-			if _run_stride >= RUN_STRIDE_PX:
-				_run_stride = 0.0
-				_run_frame_a = not _run_frame_a
+		_scroll(-d.length() / SCALE)
+		_run_stride += d.length()
+		if _run_stride >= RUN_STRIDE_PX:
+			_run_stride = 0.0
+			_run_frame_a = not _run_frame_a
 
 	# 状态机选帧：出拳 > 奔跑 > 抱架
 	var frame := "guard"
@@ -222,11 +219,20 @@ func _process(delta: float) -> void:
 	elif now - _last_move_ms < IDLE_MS:
 		frame = "run_a" if _run_frame_a else "run_b"
 	_boxer.texture = _frames[frame]
-	_boxer.flip_h = _moving_left
 	_boxer.position.y = BOXER_POS.y - (2.0 if frame == "run_b" else 0.0)
 
 	_label.text = _format_distance(total_px)
 	_sub_label.text = "%d px · punches %d" % [int(total_px), punches]
+	_layout_chip()
+
+
+func _layout_chip() -> void:
+	# 面板随文字变长自动增宽，这里钉住右边缘让它向左长，
+	# 否则大里程数会把「清零」「×」挤出 336 px 宽的窗口
+	_chip.reset_size()
+	var x := float(WIN_W - CHIP_RIGHT) - _chip.size.x
+	if not is_equal_approx(x, _chip.position.x):
+		_chip.position.x = x
 
 
 func _scroll(scene_dx: float) -> void:
