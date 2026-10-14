@@ -1,9 +1,9 @@
-// keyhook.exe — 全局键盘敲击计数助手（WH_KEYBOARD_LL 低级钩子）
-// 每次物理按键抬起（WM_KEYUP/WM_SYSKEYUP，长按自动重复只计一次）向
-// 127.0.0.1:<port> 发送 1 字节 UDP 信号，不采集、不上报任何按键内容。
-// 父进程（HUD）退出后本进程自动跟随退出。
-// 用法: keyhook.exe <udp端口> <父进程PID>
-// 编译: csc /nologo /target:winexe /out:keyhook.exe keyhook.cs
+// keyhook.exe - global keystroke counting helper (WH_KEYBOARD_LL low-level hook)
+// On every physical key release (WM_KEYUP/WM_SYSKEYUP, auto-repeat counts once) it
+// sends a 1-byte UDP signal to 127.0.0.1:<port>; no key content is captured or reported.
+// Exits automatically once its parent process (the HUD) is gone.
+// Usage: keyhook.exe <udp port> <parent PID>
+// Build: csc /nologo /target:winexe /out:keyhook.exe keyhook.cs
 using System;
 using System.Net;
 using System.Net.Sockets;

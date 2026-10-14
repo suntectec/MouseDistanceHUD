@@ -1,5 +1,5 @@
 extends Control
-# 美术预览：上为街道场景，下为拳击手 5 个姿态帧（抱架/跑步A/跑步B/红拳/黑拳）
+# Art preview: street scene on top, the boxer's 5 pose frames below (guard / run A / run B / red glove / dark glove)
 
 const BoxerArt = preload("res://scripts/boxer_art.gd")
 const SCENE_SCALE := 10

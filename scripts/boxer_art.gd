@@ -1,23 +1,23 @@
-# 像素美术数据：拳击手各姿态帧 + 分层街道场景（可横向无缝卷动）
-# 调色板字符 → 颜色；拳击手每帧 16x18；场景高度 36，街道线在 y=22
+# Pixel art data: boxer pose frames + layered street scene (seamless horizontal scrolling)
+# Palette char -> color; each boxer frame is 16x18; scene height 36, street line at y=22
 
 const PALETTE := {
-	"k": Color("1a1a22"),  # 描边
-	"h": Color("4a3123"),  # 头发
-	"s": Color("eab586"),  # 皮肤
-	"t": Color("cf9468"),  # 皮肤阴影
-	"g": Color("e04a3f"),  # 拳套
-	"d": Color("b23228"),  # 拳套暗部/后手
-	"w": Color("f7f7f7"),  # 高光
-	"b": Color("3b6ee0"),  # 短裤
-	"o": Color("e8e4da"),  # 拳靴
+	"k": Color("1a1a22"),  # outline
+	"h": Color("4a3123"),  # hair
+	"s": Color("eab586"),  # skin
+	"t": Color("cf9468"),  # skin shadow
+	"g": Color("e04a3f"),  # glove
+	"d": Color("b23228"),  # glove shadow / rear hand
+	"w": Color("f7f7f7"),  # highlight
+	"b": Color("3b6ee0"),  # shorts
+	"o": Color("e8e4da"),  # boots
 }
 
 const SCENE_H := 36
 const SCENE_W := 64
 const STREET_Y := 22
 
-# 上半身（头/拳套/躯干/短裤，行 0-13），侧面朝右、双手护脸
+# Upper body (head / gloves / torso / shorts, rows 0-13), side view facing right, both hands guarding
 const UPPER_GUARD := [
 	"....kkkkk.......",
 	"...khhhhhk......",
@@ -35,7 +35,7 @@ const UPPER_GUARD := [
 	".kbbbbbbbk......",
 ]
 
-# 下半身（行 14-17）：站姿 / 跑步迈步 / 跑步收步
+# Lower body (rows 14-17): stance / running stride / running recovery
 const LEGS_GUARD := [
 	".kbbk..kbbk.....",
 	".kbbk..kbbk.....",
@@ -55,7 +55,7 @@ const LEGS_RUN_B := [
 	"....kkkkk.......",
 ]
 
-# 红拳前手直拳：行 5-9（拳套伸向前方，后手护脸）
+# Red lead straight: rows 5-9 (glove extended forward, rear hand guarding)
 const PUNCH_A_MID := [
 	"..khssssss..kkkk",
 	"....kkkkksskgggk",
@@ -64,7 +64,7 @@ const PUNCH_A_MID := [
 	"..ksssddkk......",
 ]
 
-# 黑拳后手重拳：行 7-10（拳套压低打向身体高度，前手仍护脸）
+# Dark rear heavy: rows 7-10 (glove lowered to body height, lead hand still guarding)
 const PUNCH_B_MID := [
 	"......ssskgwgk..",
 	"......ssskgggk..",
@@ -74,11 +74,11 @@ const PUNCH_B_MID := [
 
 
 static func _rows_to_image(rows: Array) -> Image:
-	assert(rows.size() == 18, "拳击手帧必须为 18 行")
+	assert(rows.size() == 18, "boxer frame must be 18 rows")
 	var img := Image.create(16, 18, false, Image.FORMAT_RGBA8)
 	for y in rows.size():
 		var row: String = rows[y]
-		assert(row.length() == 16, "拳击手像素行宽度必须为 16")
+		assert(row.length() == 16, "boxer pixel row must be 16 wide")
 		for x in 16:
 			var ch := row[x]
 			if ch != ".":
@@ -98,7 +98,7 @@ static func make_punch_b() -> Image:
 	return _rows_to_image(UPPER_GUARD.slice(0, 7) + PUNCH_B_MID + UPPER_GUARD.slice(11, 14) + LEGS_GUARD)
 
 
-# 天空（宽 w，仅 0-21 行，22 行以下透明由路面覆盖）
+# Sky (width w, rows 0-21 only; below row 22 it is transparent and the road covers it)
 static func build_sky(w: int) -> Image:
 	var img := Image.create(w, SCENE_H, false, Image.FORMAT_RGBA8)
 	var c_top := Color("1b2340")
@@ -116,7 +116,7 @@ static func build_sky(w: int) -> Image:
 	return img
 
 
-# 楼房剪影层，128 宽（两个 64 平铺单元，接缝无缝）
+# Building silhouette layer, 128 wide (two 64 tiles, seamless join)
 static func build_buildings() -> Image:
 	var img := Image.create(128, SCENE_H, false, Image.FORMAT_RGBA8)
 	for off in [0, 64]:
@@ -133,7 +133,7 @@ static func build_buildings() -> Image:
 	return img
 
 
-# 路面层（街道线 + 沥青 + 虚线），128 宽无缝
+# Road layer (street line + asphalt + dashes), 128 wide seamless
 static func build_road() -> Image:
 	var img := Image.create(128, SCENE_H, false, Image.FORMAT_RGBA8)
 	for off in [0, 64]:
@@ -153,7 +153,7 @@ static func stamp(img: Image, frame: Image, ox: int, oy: int) -> void:
 	img.blend_rect(frame, Rect2i(0, 0, 16, 18), Vector2i(ox, oy))
 
 
-# 64 宽静态预览场景（旧预览用）
+# 64-wide static preview scene (used by the old preview)
 static func build_scene() -> Image:
 	var img := Image.create(SCENE_W, SCENE_H, false, Image.FORMAT_RGBA8)
 	img.blend_rect(build_sky(SCENE_W), Rect2i(0, 0, SCENE_W, SCENE_H), Vector2i.ZERO)

@@ -1,9 +1,9 @@
 extends Control
-## 悬浮拳击训练 HUD：像素拳击手在街道上训练
-##   鼠标移动 → 拳击手始终向右奔跑（轨迹长度即里程，不分方向），楼房/路面视差向左卷动
-##   敲键盘 → 每次敲击出一拳，左拳右拳交替，punch 计数 +1
-##   无操作 → 抱架站姿待机
-## 按住画面拖动窗口；右上角"清零"归零，"×"退出；punch 依赖 keyhook.exe
+## Floating boxing-training HUD: a pixel boxer working out on the street
+##   Mouse movement -> the boxer always runs right (travel length is the distance, direction ignored); buildings and road parallax-scroll left
+##   Keystrokes -> one punch per key release, alternating left/right, punch counter +1
+##   No input -> idle guard stance
+## Drag anywhere on the window to move it; top-right "Reset" zeroes the counters, "x" quits; punch counting needs keyhook.exe
 
 const BoxerArt = preload("res://scripts/boxer_art.gd")
 const HOOK_EXE := "keyhook.exe"
@@ -11,13 +11,13 @@ const HOOK_EXE := "keyhook.exe"
 const SCALE := 2
 const WIN_W := 336
 const WIN_H := 72
-const TILE_W := 256            # 卷动层贴图宽度（128 场景像素 × 2）
+const TILE_W := 256            # scrolling layer texture width (128 scene px x 2)
 const BOXER_POS := Vector2(36, 10)
-const STREET_LINE_Y := 44      # 街道线（2x 后）
-const PUNCH_TIME := 0.13       # 每拳动画时长（秒）
-const RUN_STRIDE_PX := 5.0     # 鼠标每移动多少像素切换一次跑步帧
-const IDLE_MS := 350           # 鼠标停止多久回到抱架
-const CHIP_RIGHT := 33         # 统计面板右边缘距窗口右边的间距
+const STREET_LINE_Y := 44      # street line (after 2x scale)
+const PUNCH_TIME := 0.13       # animation duration of one punch (seconds)
+const RUN_STRIDE_PX := 5.0     # how many mouse px advance one run frame
+const IDLE_MS := 350           # how long the mouse must stop before returning to guard
+const CHIP_RIGHT := 33         # gap between the stats panel right edge and the window edge
 
 var total_px := 0.0
 var punches := 0
@@ -109,7 +109,7 @@ func _build_scene() -> void:
 	_boxer = _make_rect(_frames["guard"], BOXER_POS, Vector2(32, 36))
 	add_child(_boxer)
 
-	# 全窗口拖动层（统计面板在其上方，不影响按钮点击）
+	# window-wide drag layer (the stats panel sits above it, so buttons stay clickable)
 	var drag := Control.new()
 	drag.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	drag.mouse_default_cursor_shape = Control.CURSOR_MOVE
@@ -153,7 +153,7 @@ func _build_chip() -> void:
 	_sub_label.add_theme_color_override("font_color", Color(0.72, 0.78, 0.9))
 	vbox.add_child(_sub_label)
 
-	hbox.add_child(_make_button("清零", _on_reset))
+	hbox.add_child(_make_button("Reset", _on_reset))
 	hbox.add_child(_make_button("×", func() -> void: get_tree().quit()))
 	add_child(chip)
 
@@ -175,20 +175,20 @@ func _make_button(text: String, handler: Callable) -> Button:
 
 func _start_hook() -> void:
 	_udp = PacketPeerUDP.new()
-	# 端口交给系统分配：写死端口会撞上 Windows 的保留区间（netsh int ipv4 show excludedportrange protocol=udp）
+	# let the OS pick the port: a hardcoded one can fall inside a Windows excluded range (netsh int ipv4 show excludedportrange protocol=udp)
 	if _udp.bind(0) != OK:
 		_udp = null
-		push_warning("无法分配 UDP 端口，punch 计数不可用")
+		push_warning("could not allocate a UDP port, punch counting unavailable")
 		return
 	var exe := ProjectSettings.globalize_path("res://" + HOOK_EXE)
 	if FileAccess.file_exists(exe):
-		# 传入端口和自己的 PID，keyhook 在 HUD 退出后自动跟随退出
+		# pass the port and our own PID; keyhook follows the HUD out when it exits
 		OS.create_process(exe, [str(_udp.get_local_port()), str(OS.get_process_id())])
 
 
 func _process(delta: float) -> void:
 	var now := Time.get_ticks_msec()
-	# 键盘敲击 → 出拳（左右交替）
+	# keystrokes -> punches (alternating hands)
 	if _udp != null:
 		while _udp.get_available_packet_count() > 0:
 			_udp.get_packet()
@@ -196,7 +196,7 @@ func _process(delta: float) -> void:
 			_punch_left = not _punch_left
 			_punch_timer = PUNCH_TIME
 
-	# 鼠标移动 → 距离累计 + 奔跑卷动
+	# mouse movement -> distance accumulation + run scrolling
 	var mouse := Vector2(DisplayServer.mouse_get_position())
 	var d := mouse - _last_mouse
 	_last_mouse = mouse
@@ -211,7 +211,7 @@ func _process(delta: float) -> void:
 			_run_stride = 0.0
 			_run_frame_a = not _run_frame_a
 
-	# 状态机选帧：出拳 > 奔跑 > 抱架
+	# frame state machine: punch > run > guard
 	var frame := "guard"
 	if _punch_timer > 0.0:
 		frame = "punch_b" if _punch_left else "punch_a"
@@ -227,8 +227,8 @@ func _process(delta: float) -> void:
 
 
 func _layout_chip() -> void:
-	# 面板随文字变长自动增宽，这里钉住右边缘让它向左长，
-	# 否则大里程数会把「清零」「×」挤出 336 px 宽的窗口
+	# the panel widens with the text, so pin its right edge and grow it leftward,
+	# otherwise a large distance would push "Reset" and "x" out of the 336 px window
 	_chip.reset_size()
 	var x := float(WIN_W - CHIP_RIGHT) - _chip.size.x
 	if not is_equal_approx(x, _chip.position.x):
@@ -236,7 +236,7 @@ func _layout_chip() -> void:
 
 
 func _scroll(scene_dx: float) -> void:
-	# 拳击手向右跑 → 世界向左卷；楼房慢速、路面全速（视差）
+	# boxer runs right -> world scrolls left; buildings slow, road full speed (parallax)
 	_building_off = fposmod(_building_off + scene_dx * 0.25, float(TILE_W))
 	_road_off = fposmod(_road_off + scene_dx, float(TILE_W))
 	for i in 3:
