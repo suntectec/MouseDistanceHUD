@@ -10,6 +10,14 @@
 
 窗口 336×72，无边框、透明背景、始终置顶。按住画面可拖动窗口，右上角「Reset」归零、「×」退出。
 
+## 下载 / Download
+
+预编译包（Windows x64，解压即用）：**[Releases](https://github.com/suntectec/MouseDistanceHUD/releases/latest)** → `MouseDistanceHUD-win64-v1.0.0.zip`（约 36 MB）
+
+包内四个文件：`MouseDistanceHUD.exe`、`keyhook.exe`、`README.txt`（玩家说明，中英双语）、`LICENSE.txt`。**`keyhook.exe` 必须和主程序放在同一目录**，否则敲键盘的 punch 计数会静默失效——把它单独删掉或只在压缩软件里双击运行，都是这个症状。
+
+Prebuilt Windows x64 builds live in [Releases](https://github.com/suntectec/MouseDistanceHUD/releases/latest). Extract the whole archive and run `MouseDistanceHUD.exe`; `keyhook.exe` has to stay next to it, otherwise the punch counter silently stops working. No Godot or .NET runtime is required.
+
 ## 环境要求
 
 | 依赖 | 说明 |
@@ -48,6 +56,9 @@ build-keyhook.bat
 | `keyhook.cs` | Win32 全局键盘钩子助手源码（编译产物不提交） |
 | `run.bat` | 启动脚本 |
 | `build-keyhook.bat` | 编译 `keyhook.exe` |
+| `export_presets.cfg` | Windows 导出预设：输出路径、版本号、`exclude_filter` |
+| `README.txt` | 随包分发的玩家说明（中英双语），源文件在仓库里是 LF |
+| `LICENSE` | MIT 许可证全文 |
 | `frames_preview.png`、`boxer_scene_preview.png` | 美术预览截图（文档用） |
 
 ## keyhook.exe 是怎么工作的
@@ -85,6 +96,33 @@ csc /nologo /target:winexe /out:keyhook.exe keyhook.cs
 - **调试截图** —— 把 `HUD_SCREENSHOT` 环境变量设成一个 png 路径，HUD 启动后会截图并退出；用 `HUD_SCREENSHOT_DELAY` 调延迟（默认 1.5 秒）
 - **改窗口尺寸** —— `SCALE`、`WIN_W`、`WIN_H` 在 `hud.gd` 顶部，改的时候记得同步 `project.godot` 里的视口尺寸
 
+## 导出与发布 / Exporting a release
+
+```bat
+godot --headless --path . --export-release "Windows Desktop"
+```
+
+产物写到 `export_presets.cfg` 的 `export_path`（当前是 `build/MouseDistanceHUD.exe`，109 MB 单文件，`embed_pck=true`，PE 子系统为 GUI 即不弹控制台窗口）。
+
+| 步骤 | 说明 |
+| --- | --- |
+| 1 | 先 `taskkill /IM MouseDistanceHUD.exe /F` —— 运行中的 exe 会锁住输出文件 |
+| 2 | 核对导出日志里的 `Storing File:` 列表。`exclude_filter="build/*"` **不要删**：`export_filter="all_resources"` 会把 Godot 导入过的任何 `res://` 内容打进包，包括 `build/` 里那些 gitignore 掉的调试截图 |
+| 3 | 发布目录放四个文件：`MouseDistanceHUD.exe`、`keyhook.exe`、`README.txt`、`LICENSE.txt`（由 `LICENSE` 改名）；zip 名带版本，如 `MouseDistanceHUD-win64-v1.0.0.zip` |
+| 4 | 把 zip 解到项目**外**的目录跑一次，确认不依赖工程文件；给 `MouseDistanceHUD.exe` 设 `HUD_SCREENSHOT=<png 路径>` 可以截图验收 |
+
+`keyhook.exe` **不能塞进 pck**：`hud.gd` 用 `globalize_path("res://keyhook.exe")` 解析，导出后它指向 `<exe 目录>/keyhook.exe`，而 `OS.create_process` 需要真实文件路径。
+
+### 版本号规则 / Versioning
+
+`major` = 计算口径变了（距离换算、DPI 逻辑、punch 定义），`minor` = 新增交互或显示，`patch` = 纯修 bug。
+
+每次导出的顺序是「定版本 → 打 tag → 填字段 → 导出」：tag 用 `v1.0.0` 这种形式；`export_presets.cfg` 里 `application/file_version` 必须是四段数字（`1.0.0.0`），`application/product_version` 写 `1.0.0`。exe 一旦分发出去，内嵌版本号就改不回来了，所以别在导出后才补。
+
+Tag before every export — the version baked into a distributed exe can't be changed afterwards. `major` changes how the numbers are computed, `minor` adds interaction or display, `patch` is bug fixes only.
+
 ## 许可
 
-尚未指定许可证。如需他人复用，请补充 LICENSE 文件。
+MIT License —— 详见 [LICENSE](LICENSE)。
+
+MIT licensed — see [LICENSE](LICENSE).
