@@ -59,7 +59,9 @@ build-keyhook.bat
 | `export_presets.cfg` | Windows 导出预设：输出路径、版本号、`exclude_filter` |
 | `README.txt` | 随包分发的玩家说明（中英双语），源文件在仓库里是 LF |
 | `LICENSE` | MIT 许可证全文 |
+| `.gitattributes` | 仓库内统一 LF，`*.bat`/`*.cmd` 检出为 CRLF，png 等按 binary 处理（进包时的 BOM/CRLF 转换见「导出与发布」） |
 | `frames_preview.png`、`boxer_scene_preview.png` | 美术预览截图（文档用） |
+| `docs/dashang.png` | 微信赞赏码图，只在 README 里显示；和 `build/` 一样被 `exclude_filter` 挡在包外 |
 
 ## keyhook.exe 是怎么工作的
 
@@ -92,8 +94,8 @@ csc /nologo /target:winexe /out:keyhook.exe keyhook.cs
 
 - **`.godot/` 不要提交** —— 导入缓存，打开项目时会自动重建，已在 `.gitignore` 里
 - **`.gd.uid` 和 `.import` 要提交** —— Godot 4.4+ 靠 `.uid` 稳定引用资源，忽略它们会让别人的引用错乱
-- **`keyhook.exe` 不要提交** —— 改了 `keyhook.cs` 记得重新跑 `build-keyhook.bat`，否则 exe 会静默过期。编译前先关掉 HUD：运行中的 `keyhook.exe` 会锁住输出文件，导致编译器报 CS0016
-- **调试截图** —— 把 `HUD_SCREENSHOT` 环境变量设成一个 png 路径，HUD 启动后会截图并退出；用 `HUD_SCREENSHOT_DELAY` 调延迟（默认 1.5 秒）
+- **`keyhook.exe` 不要提交** —— 改了 `keyhook.cs` 记得重新跑 `build-keyhook.bat`，否则 exe 会静默过期。编译前先关掉 HUD：运行中的 `keyhook.exe` 会锁住输出文件，脚本会先用 `tasklist` 检测到并报错，手工跑 `csc` 则是 CS0016
+- **调试截图** —— 把 `HUD_SCREENSHOT` 环境变量设成一个 png 路径，HUD 启动后会截图并退出；用 `HUD_SCREENSHOT_DELAY` 调延迟（默认 1.5 秒，只对 `hud.gd` 有效，`preview.gd` 里是写死的 1.2 秒）
 - **改窗口尺寸** —— `SCALE`、`WIN_W`、`WIN_H` 在 `hud.gd` 顶部，改的时候记得同步 `project.godot` 里的视口尺寸
 
 ## 导出与发布 / Exporting a release
@@ -107,8 +109,8 @@ godot --headless --path . --export-release "Windows Desktop"
 | 步骤 | 说明 |
 | --- | --- |
 | 1 | 先 `taskkill /IM MouseDistanceHUD.exe /F` —— 运行中的 exe 会锁住输出文件 |
-| 2 | 核对导出日志里的 `Storing File:` 列表。`exclude_filter="build/*"` **不要删**：`export_filter="all_resources"` 会把 Godot 导入过的任何 `res://` 内容打进包，包括 `build/` 里那些 gitignore 掉的调试截图 |
-| 3 | 发布目录放四个文件：`MouseDistanceHUD.exe`、`keyhook.exe`、`README.txt`、`LICENSE.txt`（由 `LICENSE` 改名）；zip 名带版本，如 `MouseDistanceHUD-win64-v1.0.0.zip` |
+| 2 | 核对导出日志里的 `Storing File:` 列表。`exclude_filter="build/*,docs/*"` **不要删**：`export_filter="all_resources"` 会把 Godot 导入过的任何 `res://` 内容打进包，包括 `build/` 里那些 gitignore 掉的调试截图和 `docs/` 里的打赏码图——支付物料塞进二进制是没必要的暴露。多条 glob 用逗号分隔，Godot 4.7.2 实测有效（加 `docs/*` 前后导出的 exe 哈希一致） |
+| 3 | 发布目录放四个文件：`MouseDistanceHUD.exe`、`keyhook.exe`、`README.txt`、`LICENSE.txt`（由 `LICENSE` 改名）；zip 名带版本，如 `MouseDistanceHUD-win64-v1.0.0.zip`。两个文本文件都要转成 CRLF，`README.txt` 还要加 UTF-8 **BOM**（仓库里因为 `.gitattributes` 是 LF 无 BOM，老版记事本会按 ANSI 解码成乱码）；v1.0.0 包里是 3711 字节的 BOM+CRLF 版 |
 | 4 | 把 zip 解到项目**外**的目录跑一次，确认不依赖工程文件；给 `MouseDistanceHUD.exe` 设 `HUD_SCREENSHOT=<png 路径>` 可以截图验收 |
 
 `keyhook.exe` **不能塞进 pck**：`hud.gd` 用 `globalize_path("res://keyhook.exe")` 解析，导出后它指向 `<exe 目录>/keyhook.exe`，而 `OS.create_process` 需要真实文件路径。
@@ -121,7 +123,19 @@ godot --headless --path . --export-release "Windows Desktop"
 
 Tag before every export — the version baked into a distributed exe can't be changed afterwards. `major` changes how the numbers are computed, `minor` adds interaction or display, `patch` is bug fixes only.
 
-## 许可
+## 打赏 / Support
+
+项目免费、MIT 许可。打赏不换来任何功能，也不会让谁的 issue 插队——它只是那只举爪猫今天的零食。
+
+<img src="docs/dashang.png" width="240" align="right" alt="微信赞赏码：加菲猫今天的零食">
+
+微信「赞赏码」：微信扫一扫，金额随意，可以留言。赞赏码不显示收款人姓名，资金实时到零钱，平台不抽成（提现超过 1000 元额度才收 0.1%）。
+
+目前只有微信这一条路。支付宝和海外玩家如果要，就开一个爱发电页面（对方抽 6%），再把链接加进 `.github/FUNDING.yml` 的 `custom:`，仓库右上角会多出绿色 Sponsor 按钮。
+
+Free and MIT licensed — tips buy nothing, no features and no priority in the issue queue. They just buy the cat raising its paw some snacks. WeChat only for now; an Alipay/PayPal route needs a third-party page.
+
+## 许可 / License
 
 MIT License —— 详见 [LICENSE](LICENSE)。
 
